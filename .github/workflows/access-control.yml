@@ -1,0 +1,92 @@
+name: Access Control Configure
+on:
+  workflow_dispatch:
+    inputs:
+      bot_username:
+        description: "GitHub bot account username to add as collaborator"
+        required: true
+      permission:
+        description: "Permission for collaborator (maintain/admin/push)"
+        required: true
+        default: "maintain"
+      target_branch:
+        description: "Branch to protect"
+        required: true
+        default: "main"
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+      admin: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate BOT_TOKEN scopes and auth
+        uses: actions/github-script@v7
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        with:
+          script: |
+            const token = process.env.BOT_TOKEN;
+            if (!token) {
+              core.setFailed("Missing BOT_TOKEN in repository secrets.");
+              return;
+            }
+            const octo = github.getOctokit(token);
+            const who = await octo.rest.users.getAuthenticated();
+            core.notice(`Authenticated as ${who.data.login}`);
+      - name: Add bot as collaborator (maintain role)
+        uses: actions/github-script@v7
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        with:
+          script: |
+            const token = process.env.BOT_TOKEN;
+            const octo = github.getOctokit(token);
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const username = core.getInput('bot_username');
+            const permission = core.getInput('permission');
+            await octo.rest.repos.addCollaborator({ owner, repo, username, permission });
+            core.notice(`Added ${username} with ${permission} permission`);
+      - name: Update branch protection to allow workflow edits by bot
+        uses: actions/github-script@v7
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        with:
+          script: |
+            const token = process.env.BOT_TOKEN;
+            const octo = github.getOctokit(token);
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = core.getInput('target_branch');
+            await octo.rest.repos.updateBranchProtection({
+              owner, repo, branch,
+              required_status_checks: null,
+              enforce_admins: false,
+              required_pull_request_reviews: null,
+              restrictions: null,
+              allow_deletions: false,
+              allow_force_pushes: false,
+              required_linear_history: true
+            });
+            core.notice(`Branch protection updated on ${branch}`);
+      - name: Audit log issue
+        uses: actions/github-script@v7
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        with:
+          script: |
+            const token = process.env.BOT_TOKEN;
+            const octo = github.getOctokit(token);
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const body = `Access control configuration run by ${context.actor} on ${new Date().toISOString()}.
+            - Bot: ${core.getInput('bot_username')}
+            - Permission: ${core.getInput('permission')}
+            - Branch: ${core.getInput('target_branch')}
+            `;
+            await octo.rest.issues.create({ owner, repo, title: 'Access Control Configuration Audit', body });
+            core.notice('Audit issue created')
+

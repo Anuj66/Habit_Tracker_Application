@@ -1,0 +1,61 @@
+name: Access Control Rollback
+on:
+  workflow_dispatch:
+    inputs:
+      bot_username:
+        description: "GitHub bot account username to remove"
+        required: true
+      target_branch:
+        description: "Branch to reset protection"
+        required: true
+        default: "main"
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove collaborator
+        uses: actions/github-script@v7
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        with:
+          script: |
+            const token = process.env.BOT_TOKEN;
+            if (!token) core.setFailed('Missing BOT_TOKEN');
+            const octo = github.getOctokit(token);
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const username = core.getInput('bot_username');
+            await octo.rest.repos.removeCollaborator({ owner, repo, username });
+            core.notice(`Removed collaborator ${username}`);
+      - name: Reset branch protection
+        uses: actions/github-script@v7
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        with:
+          script: |
+            const token = process.env.BOT_TOKEN;
+            const octo = github.getOctokit(token);
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = core.getInput('target_branch');
+            // Remove branch protection entirely (owner must reconfigure)
+            await octo.rest.repos.deleteBranchProtection({ owner, repo, branch });
+            core.notice(`Branch protection deleted on ${branch}`);
+      - name: Audit rollback issue
+        uses: actions/github-script@v7
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        with:
+          script: |
+            const token = process.env.BOT_TOKEN;
+            const octo = github.getOctokit(token);
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const body = `Access control rollback run by ${context.actor} on ${new Date().toISOString()}.
+            - Bot removed: ${core.getInput('bot_username')}
+            - Branch: ${core.getInput('target_branch')}
+            `;
+            await octo.rest.issues.create({ owner, repo, title: 'Access Control Rollback Audit', body });
+            core.notice('Audit rollback issue created')
+
