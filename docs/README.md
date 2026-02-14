@@ -8,6 +8,7 @@ Version: v0.1.0 • Last Updated: 2026-02-14
 - [Quick Start](#quick-start)
 - [Troubleshooting](#troubleshooting)
 - [Contribution Guidelines](#contribution-guidelines)
+ - [Bot Automation Inputs](#bot-automation-inputs)
 
 ## Descriptions
 - Project Plan: Cost analysis, CI/CD, UI/UX, timelines, risks, sprint policy
@@ -27,4 +28,13 @@ Version: v0.1.0 • Last Updated: 2026-02-14
 - Use simple, clear language; avoid secrets in documentation
 - Keep sections short; add links rather than duplicating content
 - Update this index when adding new docs; bump Version and Last Updated
+
+## Bot Automation Inputs
+- Workflow: .github/workflows/bot-automation.yml
+- Inputs:
+  - test_issue: true/false — create a verification issue
+  - pages_enable: true/false — check/attempt Pages enablement
+  - assignee: GitHub username for the test issue (optional)
+  - close_issue: true/false — auto-close the test issue after successful verification
+    - Closure only occurs if validation and retrieval succeed; errors prevent closure and are logged
 
