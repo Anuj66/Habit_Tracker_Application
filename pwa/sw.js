@@ -1,12 +1,11 @@
 const CACHE = 'habit-cache-v1';
 const ASSETS = [
-  '/',
-  '/pwa/index.html',
-  '/pwa/styles.css',
-  '/pwa/app.js',
-  '/pwa/manifest.webmanifest',
-  '/pwa/icons/icon-192.png',
-  '/pwa/icons/icon-512.png'
+  './index.html',
+  './styles.css',
+  './app.js',
+  './manifest.webmanifest',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
@@ -23,4 +22,3 @@ self.addEventListener('fetch', (e) => {
     }).catch(() => caches.match('/pwa/index.html')))
   );
 });
-

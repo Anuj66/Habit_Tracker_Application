@@ -14,12 +14,14 @@ jobs:
       - name: Install mkdocs and tools
         run: |
           pip install mkdocs mkdocs-material mkdocs-sitemap-plugin mike
-          npm install -g lychee@latest pa11y-ci
+          npm install -g pa11y-ci
       - name: Build mkdocs site
         working-directory: Habit_Tracker_Application/docs
         run: mkdocs build -d ../../site
       - name: Link check
-        run: lychee --no-progress --require-https --format detailed site
+        uses: lycheeverse/lychee-action@v1
+        with:
+          args: --no-progress --require-https --verbose site
       - name: Accessibility check
         run: pa11y-ci --sitemap site/sitemap.xml || true
       - name: Upload artifact
@@ -39,4 +41,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

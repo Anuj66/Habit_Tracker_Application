@@ -1,0 +1,11 @@
+{
+  "name": "habit-tracker-application",
+  "version": "0.1.0",
+  "private": true,
+  "homepage": "https://anuj66.github.io/Habit_Tracker_Application/",
+  "description": "Auxiliary package file for GitHub Pages metadata.",
+  "scripts": {
+    "docs:build": "python -m mkdocs build -f Habit_Tracker_Application/docs/mkdocs.yml -d site"
+  }
+}
+

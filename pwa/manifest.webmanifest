@@ -1,7 +1,8 @@
 {
   "name": "Habit Tracker",
   "short_name": "Habits",
-  "start_url": "/pwa/index.html",
+  "start_url": "index.html",
+  "scope": ".",
   "display": "standalone",
   "background_color": "#0D1B2A",
   "theme_color": "#4F5BD5",
@@ -10,4 +11,3 @@
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
-
