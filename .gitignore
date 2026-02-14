@@ -37,4 +37,4 @@ coverage/
 
 # Logs
 *.log
-
+.env
