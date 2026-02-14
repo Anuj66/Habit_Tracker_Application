@@ -12,6 +12,10 @@ on:
         description: "Attempt to enable GitHub Pages via API (if supported)"
         required: false
         default: "true"
+      assignee:
+        description: "Assignee username for test issue (optional)"
+        required: false
+        default: ""
 jobs:
   verify_bot_token:
     runs-on: ubuntu-latest
@@ -26,7 +30,28 @@ jobs:
             exit 1
           fi
           echo "BOT_TOKEN is present (value masked by Actions)"
-      - name: Auth check and repo details
+      - name: Token format check
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          LEN=${#BOT_TOKEN}
+          if [ $LEN -lt 40 ]; then
+            echo "ERROR CODE=FMT001 MSG=Token length too short ($LEN)"
+            exit 1
+          fi
+          PREFIX=${BOT_TOKEN:0:10}
+          case "$PREFIX" in
+            ghp_*|gho_*|ghs_*|ghu_*)
+              echo "Detected classic PAT prefix"
+              ;;
+            github_pat*)
+              echo "Detected fine-grained PAT prefix"
+              ;;
+            *)
+              echo "WARNING CODE=FMT002 MSG=Unknown token prefix; proceeding to API validation"
+              ;;
+          esac
+      - name: Auth check and repo details (with permissions/headers)
         uses: actions/github-script@v7
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
@@ -34,12 +59,49 @@ jobs:
           script: |
             const core = require('@actions/core');
             const token = process.env.BOT_TOKEN;
+            function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+            async function callWithRetry(fn, desc, max=3){
+              let attempt=0;
+              while(true){
+                try{ attempt++; const res = await fn(); return res; }
+                catch(err){
+                  const status = err.status || 'N/A';
+                  const msg = err.message || String(err);
+                  const rl = err.response?.headers?.['x-ratelimit-remaining'];
+                  const ra = err.response?.headers?.['retry-after'];
+                  core.warning(`STEP=${desc} ATTEMPT=${attempt} STATUS=${status} MSG=${msg}`);
+                  if (status==403 && rl==='0' && attempt<max){
+                    const wait = (ra? Number(ra)*1000 : 5000);
+                    core.notice(`Rate limited; retrying after ${wait}ms`);
+                    await sleep(wait); continue;
+                  }
+                  throw err;
+                }
+              }
+            }
             const octo = github.getOctokit(token);
-            const who = await octo.rest.users.getAuthenticated();
-            core.notice(`Authenticated as ${who.data.login}`);
+            try{
+              const userRes = await callWithRetry(()=>octo.request('GET /user'), 'get-user');
+              core.notice(`Authenticated as ${userRes.data.login}`);
+              const scopes = userRes.headers['x-oauth-scopes'] || 'unknown';
+              const expiration = userRes.headers['x-oauth-token-expiration'] || 'unknown';
+              core.notice(`Token scopes: ${scopes}`);
+              core.notice(`Token expiration: ${expiration}`);
+            } catch(err){
+              const status = err.status || 'N/A';
+              core.error(`AUTH CODE=AUTH401 STATUS=${status} MSG=${err.message}`);
+              core.setFailed('Token authentication failed');
+              return;
+            }
             const { owner, repo } = context.repo;
-            const repoInfo = await octo.rest.repos.get({ owner, repo });
-            core.notice(`Repo: ${repoInfo.data.full_name} (private=${repoInfo.data.private})`);
+            try{
+              const repoInfo = await callWithRetry(()=>octo.rest.repos.get({ owner, repo }), 'repos-get');
+              core.notice(`Repo: ${repoInfo.data.full_name} (private=${repoInfo.data.private})`);
+            } catch(err){
+              core.error(`PERM CODE=PERM403 STATUS=${err.status} MSG=${err.message}`);
+              core.setFailed('Token lacks required repository permissions');
+              return;
+            }
       - name: GitHub Pages status and enable if possible
         if: ${{ github.event.inputs.pages_enable != 'false' }}
         uses: actions/github-script@v7
@@ -69,7 +131,7 @@ jobs:
                 core.notice('If Pages uses GitHub Actions, enable it via Settings → Pages → Source: GitHub Actions.');
               }
             }
-      - name: Create and close test issue
+      - name: Create and verify test issue
         if: ${{ github.event.inputs.test_issue != 'false' }}
         uses: actions/github-script@v7
         env:
@@ -80,13 +142,60 @@ jobs:
             const token = process.env.BOT_TOKEN;
             const octo = github.getOctokit(token);
             const { owner, repo } = context.repo;
+            function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+            async function callWithRetry(fn, desc, max=3){
+              let attempt=0;
+              while(true){
+                try{ attempt++; const res = await fn(); return res; }
+                catch(err){
+                  const status = err.status || 'N/A';
+                  const msg = err.message || String(err);
+                  const rl = err.response?.headers?.['x-ratelimit-remaining'];
+                  const ra = err.response?.headers?.['retry-after'];
+                  core.warning(`STEP=${desc} ATTEMPT=${attempt} STATUS=${status} MSG=${msg}`);
+                  if (status==403 && rl==='0' && attempt<max){
+                    const wait = (ra? Number(ra)*1000 : 5000);
+                    core.notice(`Rate limited; retrying after ${wait}ms`);
+                    await sleep(wait); continue;
+                  }
+                  throw err;
+                }
+              }
+            }
+            const labelNames = ['automation','verification'];
             const title = `Automation verification ${new Date().toISOString()}`;
-            const issue = await octo.rest.issues.create({ owner, repo, title, body: 'Created by bot-automation workflow' });
-            core.notice(`Issue created: #${issue.data.number}`);
-            await octo.rest.issues.update({ owner, repo, issue_number: issue.data.number, state: 'closed' });
-            core.notice(`Issue closed: #${issue.data.number}`);
+            const assigneeInput = core.getInput('assignee');
+            const body = [
+              'Created by bot-automation workflow.',
+              'Validation steps:',
+              '- Token format and API scopes checked',
+              '- Repository permissions checked',
+              '- Rate limit handling enabled'
+            ].join('\n');
+            let issue;
+            try{
+              issue = await callWithRetry(()=>octo.rest.issues.create({
+                owner, repo, title, body,
+                assignees: assigneeInput ? [assigneeInput] : undefined,
+                labels: labelNames
+              }), 'issues-create');
+              core.notice(`Issue created: #${issue.data.number}`);
+            } catch(err){
+              core.error(`ISSUE CODE=ISSUE500 STATUS=${err.status} MSG=${err.message}`);
+              core.setFailed('Failed to create test issue');
+              return;
+            }
+            try{
+              const got = await callWithRetry(()=>octo.rest.issues.get({
+                owner, repo, issue_number: issue.data.number
+              }), 'issues-get');
+              core.notice(`Issue retrieved: #${got.data.number} state=${got.data.state} labels=${got.data.labels.map(l=>l.name).join(',')}`);
+            } catch(err){
+              core.error(`VERIFY CODE=VERIFY404 STATUS=${err.status} MSG=${err.message}`);
+              core.setFailed('Failed to verify test issue');
+              return;
+            }
       - name: Job summary
         run: |
           echo "Bot automation completed for $GITHUB_REPOSITORY" >> $GITHUB_STEP_SUMMARY
           echo "See logs for authentication, Pages status, and issue verification." >> $GITHUB_STEP_SUMMARY
-
