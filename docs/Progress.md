@@ -52,3 +52,10 @@
 - Manual verification: open docs index, navigate pages, validate PWA at /pwa/
 - Accessibility and link checks pass or issues triaged
 
+## Docs Build Reliability Fixes
+- Replaced invalid package mkdocs-sitemap-plugin with mkdocs-sitemap
+- Pinned MkDocs and Material to stable minor versions
+- Added pip upgrade for pip/setuptools/wheel and enabled pip cache
+- Implemented 3-attempt retry loop for pip installs to mitigate network hiccups
+- Added verification commands to print mkdocs version and installed packages
+- Post-deploy verification curls published URL and PWA assets

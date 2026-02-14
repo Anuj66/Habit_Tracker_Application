@@ -15,9 +15,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
       - name: Install mkdocs and tools
+        shell: bash
         run: |
-          pip install mkdocs mkdocs-material mkdocs-sitemap-plugin mike
+          set -e
+          python -m pip install --upgrade pip setuptools wheel
+          PKGS=("mkdocs==1.5.*" "mkdocs-material==9.5.*" "mkdocs-sitemap" "mike==1.*")
+          for pkg in "${PKGS[@]}"; do
+            for i in {1..3}; do
+              if python -m pip install "$pkg"; then
+                break
+              fi
+              sleep 5
+            done
+          done
+          mkdocs --version
+          python -m pip list | grep -E "mkdocs|mike"
           npm install -g pa11y-ci
       - name: Build mkdocs site
         working-directory: Habit_Tracker_Application/docs
