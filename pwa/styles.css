@@ -1,0 +1,13 @@
+:root { --primary:#4F5BD5; --bg:#0D1B2A; --surface:#ffffff; }
+html,body { margin:0; padding:0; background:linear-gradient(180deg,#0D1B2A,#1B263B); color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto; }
+header,footer { padding:12px 16px; background:rgba(255,255,255,0.06); backdrop-filter: blur(8px); }
+h1 { margin:0; font-size:20px; }
+main { padding:16px; }
+section { margin:16px 0; padding:12px; border-radius:16px; background:rgba(255,255,255,0.12); }
+input,select,textarea,button { width:100%; margin:8px 0; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.15); color:#fff; }
+button { background:var(--primary); border:none; }
+ul { list-style:none; padding:0; }
+li { display:flex; align-items:center; justify-content:space-between; padding:8px; border-bottom:1px solid rgba(255,255,255,0.1); }
+.habit-meta { font-size:12px; opacity:0.9; }
+.done { text-decoration:line-through; opacity:0.6; }
+

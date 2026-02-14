@@ -1,0 +1,25 @@
+site_name: Habit Tracker Docs
+site_description: Documentation for the Habit Tracker application
+site_url: https://anuj66.github.io/Habit_Tracker_Application/
+docs_dir: .
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: blue
+plugins:
+  - search
+  - sitemap
+markdown_extensions:
+  - toc:
+      permalink: true
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Anuj66/Habit_Tracker_Application
+nav:
+  - Index: README.md
+  - Project Plan: PROJECT_DOCUMENTATION.md
+  - Implementation Plan: IMPLEMENTATION_PLAN.md
+

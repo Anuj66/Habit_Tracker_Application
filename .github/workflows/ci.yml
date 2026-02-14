@@ -46,9 +46,16 @@ jobs:
           file: Habit_Tracker_Application/Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/habit-tracker:latest
+  notify:
+    needs: [build_and_push_image]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Job summary
+        run: |
+          echo "CI completed for $GITHUB_SHA" >> $GITHUB_STEP_SUMMARY
+          echo "Docker image pushed to ghcr.io/${{ github.repository_owner }}/habit-tracker:latest" >> $GITHUB_STEP_SUMMARY
   deploy:
     needs: build_and_push_image
     runs-on: ubuntu-latest
     steps:
       - run: echo "Deploy step placeholder; use infra to pull ghcr image"
-

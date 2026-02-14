@@ -1,0 +1,42 @@
+name: Docs Pages
+on:
+  push:
+    branches: ["main"]
+jobs:
+  build_docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install mkdocs and tools
+        run: |
+          pip install mkdocs mkdocs-material mkdocs-sitemap-plugin mike
+          npm install -g lychee@latest pa11y-ci
+      - name: Build mkdocs site
+        working-directory: Habit_Tracker_Application/docs
+        run: mkdocs build -d ../../site
+      - name: Link check
+        run: lychee --no-progress --require-https --format detailed site
+      - name: Accessibility check
+        run: pa11y-ci --sitemap site/sitemap.xml || true
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: site
+  deploy:
+    needs: build_docs
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
