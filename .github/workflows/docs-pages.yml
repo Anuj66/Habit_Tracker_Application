@@ -33,8 +33,7 @@ jobs:
           python -m pip list | grep -E "mkdocs|mike"
           npm install -g pa11y-ci
       - name: Build mkdocs site
-        working-directory: Habit_Tracker_Application/docs
-        run: mkdocs build -d ../../site
+        run: mkdocs build -f Habit_Tracker_Application/docs/mkdocs.yml -d site
       - name: Link check
         uses: lycheeverse/lychee-action@v1
         with:
