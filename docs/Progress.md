@@ -59,3 +59,9 @@
 - Implemented 3-attempt retry loop for pip installs to mitigate network hiccups
 - Added verification commands to print mkdocs version and installed packages
 - Post-deploy verification curls published URL and PWA assets
+
+## Workflow Failure Fixes
+- Access Control: removed invalid 'admin' permission key from workflow permissions
+- CI (Flutter): guarded flutter steps with file existence checks; removed invalid working-directory causing path errors
+- Security Scan: corrected Trivy input key from 'input' to 'scan-ref'
+- Bot Automation: fixed github-script SyntaxError by removing duplicate 'const core' declarations

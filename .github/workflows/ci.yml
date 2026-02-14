@@ -12,12 +12,13 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+        if: ${{ hashFiles('**/pubspec.yaml') != '' }}
       - run: flutter pub get
-        working-directory: Habit_Tracker_Application
+        if: ${{ hashFiles('**/pubspec.yaml') != '' }}
       - run: flutter analyze
-        working-directory: Habit_Tracker_Application
+        if: ${{ hashFiles('**/pubspec.yaml') != '' }}
       - run: flutter test
-        working-directory: Habit_Tracker_Application
+        if: ${{ hashFiles('**/pubspec.yaml') != '' }}
   security_scan:
     runs-on: ubuntu-latest
     steps:
@@ -28,7 +29,7 @@ jobs:
           ignore-unfixed: true
           format: table
           exit-code: 0
-          input: .
+          scan-ref: .
   build_and_push_image:
     needs: [test_analyze, security_scan]
     runs-on: ubuntu-latest

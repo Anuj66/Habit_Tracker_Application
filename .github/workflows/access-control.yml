@@ -19,7 +19,6 @@ jobs:
     permissions:
       contents: write
       actions: write
-      admin: write
     steps:
       - uses: actions/checkout@v4
       - name: Validate BOT_TOKEN scopes and auth
@@ -89,4 +88,3 @@ jobs:
             `;
             await octo.rest.issues.create({ owner, repo, title: 'Access Control Configuration Audit', body });
             core.notice('Audit issue created')
-
