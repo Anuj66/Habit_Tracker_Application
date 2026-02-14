@@ -1,0 +1,92 @@
+name: Bot Automation
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      test_issue:
+        description: "Create and close a test issue to verify write access"
+        required: false
+        default: "true"
+      pages_enable:
+        description: "Attempt to enable GitHub Pages via API (if supported)"
+        required: false
+        default: "true"
+jobs:
+  verify_bot_token:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate BOT_TOKEN presence
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          if [ -z "${BOT_TOKEN}" ]; then
+            echo "BOT_TOKEN is missing in repository secrets"
+            exit 1
+          fi
+          echo "BOT_TOKEN is present (value masked by Actions)"
+      - name: Auth check and repo details
+        uses: actions/github-script@v7
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        with:
+          script: |
+            const core = require('@actions/core');
+            const token = process.env.BOT_TOKEN;
+            const octo = github.getOctokit(token);
+            const who = await octo.rest.users.getAuthenticated();
+            core.notice(`Authenticated as ${who.data.login}`);
+            const { owner, repo } = context.repo;
+            const repoInfo = await octo.rest.repos.get({ owner, repo });
+            core.notice(`Repo: ${repoInfo.data.full_name} (private=${repoInfo.data.private})`);
+      - name: GitHub Pages status and enable if possible
+        if: ${{ github.event.inputs.pages_enable != 'false' }}
+        uses: actions/github-script@v7
+        continue-on-error: true
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        with:
+          script: |
+            const core = require('@actions/core');
+            const token = process.env.BOT_TOKEN;
+            const octo = github.getOctokit(token);
+            const { owner, repo } = context.repo;
+            try {
+              const res = await octo.rest.repos.getPages({ owner, repo });
+              core.notice(`Pages status: ${res.status} (enabled)`);
+              core.notice(`Pages build type: ${res.data.build_type || 'unknown'}`);
+            } catch (err) {
+              core.warning(`GetPages failed: ${err.status} ${err.message}`);
+              try {
+                // Attempt legacy Pages creation (may not be supported on all repos)
+                const createRes = await octo.request('POST /repos/{owner}/{repo}/pages', {
+                  owner, repo, source: { branch: 'main', path: '/' }
+                });
+                core.notice(`Attempted Pages creation: ${createRes.status}`);
+              } catch (createErr) {
+                core.warning(`Pages creation not supported or failed: ${createErr.status} ${createErr.message}`);
+                core.notice('If Pages uses GitHub Actions, enable it via Settings → Pages → Source: GitHub Actions.');
+              }
+            }
+      - name: Create and close test issue
+        if: ${{ github.event.inputs.test_issue != 'false' }}
+        uses: actions/github-script@v7
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        with:
+          script: |
+            const core = require('@actions/core');
+            const token = process.env.BOT_TOKEN;
+            const octo = github.getOctokit(token);
+            const { owner, repo } = context.repo;
+            const title = `Automation verification ${new Date().toISOString()}`;
+            const issue = await octo.rest.issues.create({ owner, repo, title, body: 'Created by bot-automation workflow' });
+            core.notice(`Issue created: #${issue.data.number}`);
+            await octo.rest.issues.update({ owner, repo, issue_number: issue.data.number, state: 'closed' });
+            core.notice(`Issue closed: #${issue.data.number}`);
+      - name: Job summary
+        run: |
+          echo "Bot automation completed for $GITHUB_REPOSITORY" >> $GITHUB_STEP_SUMMARY
+          echo "See logs for authentication, Pages status, and issue verification." >> $GITHUB_STEP_SUMMARY
+
